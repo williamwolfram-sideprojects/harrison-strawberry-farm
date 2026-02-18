@@ -694,6 +694,21 @@ const G = {
 const $=s=>document.querySelector(s);
 const $$=s=>document.querySelectorAll(s);
 const field=$('#farm-field');
+
+/* PeerJS config with reliable ICE servers */
+const PEER_CFG={
+  debug:0,
+  config:{
+    iceServers:[
+      {urls:'stun:stun.l.google.com:19302'},
+      {urls:'stun:stun1.l.google.com:19302'},
+      {urls:'stun:stun2.l.google.com:19302'},
+      {urls:'stun:stun.cloudflare.com:3478'}
+    ]
+  }
+};
+function makePeer(id){return new Peer(id,PEER_CFG)}
+
 const container=$('#game-container');
 
 /* ═══════════════════════════════════════════
@@ -1360,7 +1375,20 @@ function showScreen(id){
   $$('.screen').forEach(s=>s.classList.add('hidden'));
   if(id){$('#'+id).classList.remove('hidden')}
 }
+function requireName(){
+  const name=$('#player-name').value.trim();
+  if(!name){
+    const inp=$('#player-name');
+    inp.style.border='2px solid #FF1744';
+    inp.placeholder='Enter your name!';
+    inp.focus();
+    inp.addEventListener('input',function(){inp.style.border=''},{ once:true });
+    return false;
+  }
+  return true;
+}
 function startSinglePlayer(){
+  if(!requireName())return;
   stopLobbyScanning();
   initAudio();
   G.isMultiplayer=false;
@@ -1402,6 +1430,7 @@ function genRoomCode(){
 }
 
 function showHostScreen(){
+  if(!requireName())return;
   stopLobbyScanning();
   initAudio();
   const name=$('#player-name').value.trim()||'Harrison';
@@ -1417,7 +1446,7 @@ function showHostScreen(){
   $('#join-input').style.display='none';
   $('#start-mp-btn').style.display='none';
 
-  G.peer=new Peer('straw-'+G.roomCode,{debug:0});
+  G.peer=makePeer('straw-'+G.roomCode);
   G.peer.on('open',id=>{
     $('#lobby-status').textContent='Waiting for players... Share the code!';
     $('#start-mp-btn').style.display='block';
@@ -1433,7 +1462,7 @@ function showHostScreen(){
       const p=G.players[Object.keys(G.players)[0]];
       G.players={};G.players[G.myId]=p;
       G.peer.destroy();
-      G.peer=new Peer('straw-'+G.roomCode,{debug:0});
+      G.peer=makePeer('straw-'+G.roomCode);
       G.peer.on('open',()=>{
         $('#lobby-status').textContent='Waiting for players... Share the code!';
         $('#start-mp-btn').style.display='block';
@@ -1484,6 +1513,7 @@ function setupHostListeners(){
 }
 
 function showJoinScreen(){
+  if(!requireName())return;
   stopLobbyScanning();
   initAudio();
   G.isHost=false;G.isMultiplayer=true;
@@ -1506,7 +1536,7 @@ function joinRoom(){
   $('#lobby-status').textContent='Connecting...';
   $('#join-input').style.display='none';
 
-  G.peer=new Peer(G.myId,{debug:0});
+  G.peer=makePeer(G.myId);
   G.peer.on('open',()=>{
     const conn=G.peer.connect('straw-'+code,{reliable:true});
     conn.on('open',()=>{
@@ -1723,6 +1753,7 @@ function renderLiveGames(){
 }
 
 function quickJoinGame(code){
+  if(!requireName())return;
   stopLobbyScanning();
   initAudio();
   const name=$('#player-name').value.trim()||'Player';
@@ -1741,7 +1772,7 @@ function quickJoinGame(code){
   // Clean up any existing peer
   if(G.peer){try{G.peer.destroy()}catch(e){}}
 
-  G.peer=new Peer(G.myId,{debug:0});
+  G.peer=makePeer(G.myId);
   
   var joinTimeout=setTimeout(function(){
     $('#lobby-status').textContent='Game not found. Heading back...';
