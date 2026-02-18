@@ -447,6 +447,77 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-u
   .sb-entry{font-size:12px}
   #combo-display{top:55px;font-size:16px}
 }
+
+/* ═══════════════════════════════════════════
+   SAKE ATTACK SYSTEM
+   ═══════════════════════════════════════════ */
+.sake-item{
+  position:absolute;font-size:28px;cursor:pointer;z-index:20;
+  animation:sakeFloat 1.5s ease-in-out infinite;
+  filter:drop-shadow(0 2px 6px rgba(0,0,0,0.3));
+  transition:transform 0.2s var(--bounce);
+}
+.sake-item:active{transform:scale(0.8)}
+.sake-item.collected{animation:popOut 0.3s ease-out forwards}
+
+.sake-ammo{
+  position:fixed;bottom:80px;right:12px;z-index:100;
+  background:rgba(0,0,0,0.7);color:#fff;border-radius:16px;
+  padding:6px 14px;font-size:18px;font-weight:bold;
+  display:none;backdrop-filter:blur(4px);
+  border:2px solid rgba(255,255,255,0.2);
+  animation:fadeSlideUp 0.3s var(--bounce);
+}
+.sake-ammo.has-ammo{display:flex;align-items:center;gap:6px}
+
+.player-cursor.targetable{cursor:crosshair;filter:drop-shadow(0 0 8px rgba(255,0,0,0.5))}
+.player-cursor .sake-target{
+  position:absolute;top:-10px;left:-10px;right:-10px;bottom:-10px;
+  border:2px dashed rgba(255,0,0,0.5);border-radius:50%;
+  animation:targetPulse 0.8s ease-in-out infinite;
+}
+@keyframes targetPulse{0%,100%{transform:scale(1);opacity:0.5}50%{transform:scale(1.2);opacity:1}}
+
+.sake-projectile{
+  position:fixed;font-size:32px;z-index:150;pointer-events:none;
+  transition:all 0.4s ease-in;
+}
+
+.sake-splash{
+  position:fixed;z-index:200;pointer-events:none;
+  font-size:48px;animation:sakeSplash 0.8s ease-out forwards;
+}
+@keyframes sakeSplash{
+  0%{transform:scale(0.5) rotate(0deg);opacity:1}
+  50%{transform:scale(1.5) rotate(180deg);opacity:0.8}
+  100%{transform:scale(2) rotate(360deg);opacity:0}
+}
+
+#game-container.drunk{
+  animation:drunkWobble 0.5s ease-in-out infinite !important;
+}
+@keyframes drunkWobble{
+  0%,100%{transform:rotate(0deg) skewX(0deg)}
+  25%{transform:rotate(1.5deg) skewX(1deg)}
+  75%{transform:rotate(-1.5deg) skewX(-1deg)}
+}
+
+.drunk-overlay{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(139,69,19,0.15);z-index:90;pointer-events:none;
+  animation:drunkPulse 1s ease-in-out infinite;
+}
+@keyframes drunkPulse{0%,100%{opacity:0.1}50%{opacity:0.25}}
+
+.sake-hit-flash{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(255,165,0,0.4);z-index:200;pointer-events:none;
+  animation:sakeFlash 0.5s ease-out forwards;
+}
+@keyframes sakeFlash{0%{opacity:1}100%{opacity:0}}
+
+@keyframes sakeFloat{0%,100%{transform:translateY(0) rotate(-5deg)}50%{transform:translateY(-8px) rotate(5deg)}}
+
 </style>
 </head>
 <body>
@@ -578,6 +649,7 @@ const G = {
   peer:null,connections:[],
   players:{},myId:'',roomCode:'',
   soundOn:true,audioCtx:null,
+  sakeAmmo:0,isDrunk:false,drunkTimer:null,sakeItems:[],
 };
 
 const $=s=>document.querySelector(s);
@@ -655,6 +727,10 @@ const SFX={
   levelUp(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>playTone(f,0.2,'sine',0.12),i*100))},
   gameOver(){[440,415,392,349].forEach((f,i)=>setTimeout(()=>playTone(f,0.4,'triangle',0.1),i*200))},
   tick(){playTone(1000,0.05,'sine',0.05)},
+  sakePickup(){playTone(500,0.15,'sine',0.1);playTone(750,0.1,'triangle',0.08);setTimeout(()=>playTone(1000,0.08,'sine',0.06),80)},
+  sakeThrow(){playTone(300,0.2,'sawtooth',0.08);playTone(200,0.15,'sawtooth',0.06)},
+  sakeHit(){playTone(150,0.4,'sawtooth',0.12);playTone(100,0.3,'square',0.08);playNoise(0.3,0.1);setTimeout(()=>{playTone(80,0.3,'sawtooth',0.06)},150)},
+  sakeSplash(){[200,180,160,140].forEach((f,i)=>setTimeout(()=>playTone(f,0.15,'sine',0.06),i*50))},
 };
 
 let bgMusicInterval=null;
@@ -982,6 +1058,168 @@ function stopMagnet(){clearInterval(magnetInterval);magnetInterval=null}
 // Update powerup bar timers
 setInterval(()=>{if(G.running)renderPowerupBar()},200);
 
+
+/* ═══════════════════════════════════════════
+   SAKE ATTACK SYSTEM
+   ═══════════════════════════════════════════ */
+function spawnSake(){
+  if(!G.running||!G.isMultiplayer)return;
+  const el=document.createElement('div');
+  el.className='sake-item';
+  el.textContent='🍶';
+  const fw=field.clientWidth,fh=field.clientHeight;
+  el.style.left=(20+Math.random()*(fw-60))+'px';
+  el.style.top=(20+Math.random()*(fh-80))+'px';
+  el.addEventListener('pointerdown',e=>{
+    e.preventDefault();e.stopPropagation();
+    collectSake(el);
+  },{passive:false});
+  field.appendChild(el);
+  G.sakeItems.push(el);
+  // Despawn after 8s
+  setTimeout(()=>{
+    if(el.parentNode&&!el.classList.contains('collected')){
+      el.classList.add('collected');
+      setTimeout(()=>el.remove(),400);
+      G.sakeItems=G.sakeItems.filter(s=>s!==el);
+    }
+  },8000);
+}
+
+function collectSake(el){
+  if(el.classList.contains('collected'))return;
+  el.classList.add('collected');
+  G.sakeAmmo=Math.min(G.sakeAmmo+1,5);
+  updateSakeAmmo();
+  SFX.sakePickup();
+  const rect=el.getBoundingClientRect();
+  spawnScorePopup(rect.left,rect.top,'🍶 +1 Sake!','combo');
+  spawnParticles(rect.left+14,rect.top+14,8,['#8B4513','#D2691E','#F4A460','#FFDEAD']);
+  setTimeout(()=>el.remove(),400);
+  G.sakeItems=G.sakeItems.filter(s=>s!==el);
+  // Make other player cursors targetable
+  if(G.sakeAmmo>0)enableSakeTargeting();
+}
+
+function updateSakeAmmo(){
+  const ammoEl=$('#sake-ammo');
+  const countEl=$('#sake-count');
+  countEl.textContent=G.sakeAmmo;
+  if(G.sakeAmmo>0){ammoEl.classList.add('has-ammo')}
+  else{ammoEl.classList.remove('has-ammo');disableSakeTargeting()}
+}
+
+function enableSakeTargeting(){
+  Object.entries(remoteCursors).forEach(([id,el])=>{
+    el.classList.add('targetable');
+    if(!el._sakeTarget){
+      const t=document.createElement('div');
+      t.className='sake-target';
+      el.appendChild(t);
+      el._sakeTarget=t;
+    }
+    // Remove old handler first
+    if(el._sakeHandler)el.removeEventListener('pointerdown',el._sakeHandler);
+    el._sakeHandler=function(e){
+      e.preventDefault();e.stopPropagation();
+      throwSakeAt(id,el);
+    };
+    el.addEventListener('pointerdown',el._sakeHandler,{passive:false});
+  });
+}
+
+function disableSakeTargeting(){
+  Object.entries(remoteCursors).forEach(([id,el])=>{
+    el.classList.remove('targetable');
+    if(el._sakeTarget){el._sakeTarget.remove();el._sakeTarget=null}
+    if(el._sakeHandler){el.removeEventListener('pointerdown',el._sakeHandler);el._sakeHandler=null}
+  });
+}
+
+function throwSakeAt(targetId,targetEl){
+  if(G.sakeAmmo<=0)return;
+  G.sakeAmmo--;
+  updateSakeAmmo();
+  SFX.sakeThrow();
+  
+  // Animate projectile from bottom-right to target
+  const proj=document.createElement('div');
+  proj.className='sake-projectile';
+  proj.textContent='🍶';
+  proj.style.left=(window.innerWidth-60)+'px';
+  proj.style.top=(window.innerHeight-100)+'px';
+  document.body.appendChild(proj);
+  
+  const targetRect=targetEl.getBoundingClientRect();
+  requestAnimationFrame(()=>{
+    proj.style.left=targetRect.left+'px';
+    proj.style.top=targetRect.top+'px';
+    proj.style.transform='rotate(720deg) scale(0.5)';
+  });
+  
+  setTimeout(()=>{
+    proj.remove();
+    // Splash effect
+    const splash=document.createElement('div');
+    splash.className='sake-splash';
+    splash.textContent='💥🍶';
+    splash.style.left=targetRect.left+'px';
+    splash.style.top=targetRect.top+'px';
+    document.body.appendChild(splash);
+    setTimeout(()=>splash.remove(),800);
+    SFX.sakeSplash();
+  },400);
+  
+  // Broadcast the attack
+  broadcastMP({type:'sake_attack',from:G.myId,fromName:G.players[G.myId]?.name||'?',target:targetId});
+  spawnScorePopup(targetRect.left,targetRect.top,'🍶 SAKE ATTACK!','combo');
+}
+
+function receiveSakeHit(fromName){
+  if(G.isDrunk)return; // Already drunk, ignore
+  G.isDrunk=true;
+  SFX.sakeHit();
+  screenShake();
+  
+  // Flash
+  const flash=document.createElement('div');
+  flash.className='sake-hit-flash';
+  document.body.appendChild(flash);
+  setTimeout(()=>flash.remove(),500);
+  
+  // Drunk overlay
+  const overlay=document.createElement('div');
+  overlay.className='drunk-overlay';
+  overlay.id='drunk-overlay';
+  document.body.appendChild(overlay);
+  
+  // Wobble the game
+  container.classList.add('drunk');
+  
+  // Score penalty
+  addScore(-20);
+  spawnScorePopup(window.innerWidth/2,window.innerHeight/2,'-20 🍶 DRUNK!','negative');
+  spawnScorePopup(window.innerWidth/2,window.innerHeight/2+40,fromName+' got you!','');
+  
+  // Combo reset
+  G.combo=0;
+  updateCombo();
+  
+  // Reverse controls for 4 seconds - clicks register offset
+  G._drunkOffset={x:(Math.random()-0.5)*80,y:(Math.random()-0.5)*80};
+  
+  if(G.drunkTimer)clearTimeout(G.drunkTimer);
+  G.drunkTimer=setTimeout(()=>{
+    G.isDrunk=false;
+    G._drunkOffset=null;
+    container.classList.remove('drunk');
+    const ov=document.getElementById('drunk-overlay');
+    if(ov)ov.remove();
+  },4000);
+  
+  if(G.isMultiplayer)broadcastScore();
+}
+
 /* ═══════════════════════════════════════════
    GAME TIMER
    ═══════════════════════════════════════════ */
@@ -1016,12 +1254,14 @@ function startGame(){
   $('#powerup-bar').innerHTML='';
 
   // Clear field
-  field.querySelectorAll('.strawberry,.bird,.powerup,.player-cursor').forEach(e=>e.remove());
+  field.querySelectorAll('.strawberry,.bird,.powerup,.player-cursor,.sake-item').forEach(e=>e.remove());
 
   // Start spawners
   G.timers.strawSpawn=setInterval(spawnStrawberry,G.spawnRate);
   G.timers.birdSpawn=setInterval(spawnBird,G.birdRate);
   G.timers.powerSpawn=setInterval(spawnPowerup,G.powerupRate);
+  G.sakeAmmo=0;G.isDrunk=false;G.sakeItems=[];updateSakeAmmo();
+  if(G.isMultiplayer){G.timers.sakeSpawn=setInterval(spawnSake,6000);setTimeout(spawnSake,3000)}
 
   // Spawn initial batch
   for(let i=0;i<6;i++)setTimeout(spawnStrawberry,i*120);
@@ -1107,7 +1347,7 @@ function backToTitle(){
   G.connections=[];G.isMultiplayer=false;
   showScreen('title-screen');
   $('#scoreboard').classList.remove('visible');
-  field.querySelectorAll('.strawberry,.bird,.powerup,.player-cursor').forEach(e=>e.remove());
+  field.querySelectorAll('.strawberry,.bird,.powerup,.player-cursor,.sake-item').forEach(e=>e.remove());
 }
 
 /* ═══════════════════════════════════════════
@@ -1262,6 +1502,11 @@ function handleMPData(data,conn){
     case 'cursor':
       showRemoteCursor(data.id,data.name,data.x,data.y);
       break;
+    case 'sake_attack':
+      if(data.target===G.myId)receiveSakeHit(data.fromName);
+      // Forward to other players if host
+      if(G.isHost&&data.target!==G.myId)broadcastMP(data);
+      break;
     case 'gameover':
       if(data.players)G.players=data.players;
       break;
@@ -1326,6 +1571,7 @@ function showRemoteCursor(id,name,nx,ny){
   }
   el.style.left=(nx*field.clientWidth)+'px';
   el.style.top=(ny*field.clientHeight)+'px';
+  if(G.sakeAmmo>0&&!el.classList.contains('targetable'))enableSakeTargeting();
 }
 
 // Send cursor position periodically
