@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
 <title>Harrison's Strawberry Farm 🍓</title>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
@@ -10,7 +10,7 @@
    RESET & BASE
    ═══════════════════════════════════════════ */
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;touch-action:manipulation;user-select:none;-webkit-user-select:none;-ms-touch-action:manipulation}
 
 /* ═══════════════════════════════════════════
    CSS VARIABLES
@@ -450,6 +450,20 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-u
 </style>
 </head>
 <body>
+<script>
+// Prevent double-tap zoom on mobile
+document.addEventListener('touchstart', function(e) {
+  if (e.touches.length > 1) e.preventDefault();
+}, { passive: false });
+let lastTouchEnd = 0;
+document.addEventListener('touchend', function(e) {
+  const now = Date.now();
+  if (now - lastTouchEnd <= 300) { e.preventDefault(); }
+  lastTouchEnd = now;
+}, { passive: false });
+document.addEventListener('gesturestart', function(e) { e.preventDefault(); }, { passive: false });
+</script>
+
 
 <!-- ═══════════════════════════════════════════
      GAME CONTAINER
@@ -1122,7 +1136,7 @@ function showHostScreen(){
 
   G.peer=new Peer('straw-'+G.roomCode,{debug:0});
   G.peer.on('open',id=>{
-    $('#lobby-status').textContent='Waiting for players... Share the code!';
+    $('#lobby-status').textContent='Waiting for players... Share the code! (unlimited players)';
     $('#start-mp-btn').style.display='block';
     updatePlayersList();
   });
@@ -1137,7 +1151,7 @@ function showHostScreen(){
       G.peer.destroy();
       G.peer=new Peer('straw-'+G.roomCode,{debug:0});
       G.peer.on('open',()=>{
-        $('#lobby-status').textContent='Waiting for players... Share the code!';
+        $('#lobby-status').textContent='Waiting for players... Share the code! (unlimited players)';
         $('#start-mp-btn').style.display='block';
         updatePlayersList();
       });
