@@ -619,7 +619,13 @@ document.addEventListener('gesturestart', function(e) { e.preventDefault(); }, {
     <div class="menu-buttons">
       <button class="btn btn-primary" onclick="startSinglePlayer()">🎮 Solo Play</button>
       <button class="btn btn-secondary" onclick="showHostScreen()">🌐 Host Game</button>
-      <button class="btn btn-gold" onclick="showJoinScreen()">🤝 Join Game</button>
+      <button class="btn btn-gold" onclick="showJoinScreen()">🤝 Join Code</button>
+    </div>
+    <div class="live-games" id="live-games">
+      <h3><span class="pulse-dot"></span> Live Games</h3>
+      <div class="live-games-list" id="live-games-list">
+        <div class="no-games">Scanning for games...</div>
+      </div>
     </div>
     <div class="input-group" style="margin-top:20px">
       <label>Your Name</label>
