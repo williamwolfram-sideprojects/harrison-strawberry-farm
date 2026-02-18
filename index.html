@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
 <title>Harrison's Strawberry Farm 🍓</title>
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 /* ═══════════════════════════════════════════
    RESET & BASE
@@ -685,7 +685,6 @@ const G = {
   spawnRate:800,birdRate:8000,powerupRate:12000,
   timers:{},
   isHost:false,isMultiplayer:false,
-  peer:null,connections:[],
   players:{},myId:'',roomCode:'',
   soundOn:true,audioCtx:null,
   sakeAmmo:0,isDrunk:false,drunkTimer:null,sakeItems:[],
@@ -695,19 +694,12 @@ const $=s=>document.querySelector(s);
 const $$=s=>document.querySelectorAll(s);
 const field=$('#farm-field');
 
-/* PeerJS config with reliable ICE servers */
-const PEER_CFG={
-  debug:0,
-  config:{
-    iceServers:[
-      {urls:'stun:stun.l.google.com:19302'},
-      {urls:'stun:stun1.l.google.com:19302'},
-      {urls:'stun:stun2.l.google.com:19302'},
-      {urls:'stun:stun.cloudflare.com:3478'}
-    ]
-  }
-};
-function makePeer(id){return new Peer(id,PEER_CFG)}
+/* Supabase Realtime for multiplayer */
+const SUPA_URL='https://vvvxgoqlnltukhtlpdxx.supabase.co';
+const SUPA_KEY='sb_publishable_9EhjmwnbK3sSoEwivmvuuQ_yjTGCA6X';
+const supabase=window.supabase.createClient(SUPA_URL,SUPA_KEY);
+let gameChannel=null;
+let lobbyChannel=null;
 
 const container=$('#game-container');
 
@@ -1308,7 +1300,7 @@ function startGame(){
   $('#powerup-bar').innerHTML='';
 
   // Clear field
-  field.querySelectorAll('.strawberry,.bird,.powerup,.player-cursor,.sake-item').forEach(e=>e.remove());
+  field.querySelectorAll('.strawberry,.bird,.powerup,.player-cursor,.sake-item').forEach(function(e){e.remove()});
 
   // Start spawners
   G.timers.strawSpawn=setInterval(spawnStrawberry,G.spawnRate);
@@ -1402,43 +1394,50 @@ function startSinglePlayer(){
 }
 function playAgain(){
   showScreen(null);
-  if(G.isMultiplayer&&G.isHost){
-    broadcastMP({type:'restart'});
-  }
+  if(G.isMultiplayer&&G.isHost)broadcastMP({type:'restart'});
   startGame();
 }
 function backToTitle(){
   G.running=false;
   stopBgMusic();
   Object.values(G.timers).forEach(clearInterval);
-  if(G.peer){G.peer.destroy();G.peer=null}
-  G.connections=[];G.isMultiplayer=false;
+  if(G.isHost)unregisterLobbyGame(G.roomCode);
+  if(gameChannel){supabase.removeChannel(gameChannel);gameChannel=null}
+  G.isMultiplayer=false;
   showScreen('title-screen');
-startLobbyScanning();
   startLobbyScanning();
   $('#scoreboard').classList.remove('visible');
-  field.querySelectorAll('.strawberry,.bird,.powerup,.player-cursor,.sake-item').forEach(e=>e.remove());
+  field.querySelectorAll('.strawberry,.bird,.powerup,.player-cursor,.sake-item').forEach(function(e){e.remove()});
 }
 
 /* ═══════════════════════════════════════════
-   MULTIPLAYER - PeerJS
+   MULTIPLAYER - Supabase Realtime
    ═══════════════════════════════════════════ */
 function genRoomCode(){
-  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ';
-  let c='';for(let i=0;i<4;i++)c+=chars[Math.floor(Math.random()*chars.length)];
+  var chars='ABCDEFGHJKLMNPQRSTUVWXYZ';
+  var c='';for(var i=0;i<4;i++)c+=chars[Math.floor(Math.random()*chars.length)];
   return c;
+}
+
+function broadcastMP(data){
+  if(gameChannel){
+    gameChannel.send({type:'broadcast',event:'game',payload:data});
+  }
+}
+function broadcastScore(){
+  broadcastMP({type:'score',id:G.myId,score:G.score});
 }
 
 function showHostScreen(){
   if(!requireName())return;
   stopLobbyScanning();
   initAudio();
-  const name=$('#player-name').value.trim()||'Harrison';
+  var name=$('#player-name').value.trim()||'Host';
   G.isHost=true;G.isMultiplayer=true;
   G.roomCode=genRoomCode();
   G.myId='host-'+G.roomCode;
   G.players={};
-  G.players[G.myId]={name,score:0};
+  G.players[G.myId]={name:name,score:0};
 
   showScreen('multiplayer-screen');
   $('#room-code').textContent=G.roomCode;
@@ -1446,69 +1445,20 @@ function showHostScreen(){
   $('#join-input').style.display='none';
   $('#start-mp-btn').style.display='none';
 
-  G.peer=makePeer('straw-'+G.roomCode);
-  G.peer.on('open',id=>{
-    $('#lobby-status').textContent='Waiting for players... Share the code!';
-    $('#start-mp-btn').style.display='block';
-    updatePlayersList();
-    registerLobbyGame(G.roomCode,name,1);
+  // Create Supabase channel for this game
+  gameChannel=supabase.channel('game-'+G.roomCode,{config:{broadcast:{self:false}}});
+  gameChannel.on('broadcast',{event:'game'},function(msg){
+    handleMPData(msg.payload);
   });
-  G.peer.on('error',err=>{
-    console.error('Peer error:',err);
-    if(err.type==='unavailable-id'){
-      G.roomCode=genRoomCode();
-      $('#room-code').textContent=G.roomCode;
-      G.myId='host-'+G.roomCode;
-      const p=G.players[Object.keys(G.players)[0]];
-      G.players={};G.players[G.myId]=p;
-      G.peer.destroy();
-      G.peer=makePeer('straw-'+G.roomCode);
-      G.peer.on('open',()=>{
-        $('#lobby-status').textContent='Waiting for players... Share the code!';
-        $('#start-mp-btn').style.display='block';
-        updatePlayersList();
-        registerLobbyGame(G.roomCode,name,1);
-      });
-      setupHostListeners();
-    }else{
-      $('#lobby-status').textContent='Error: '+err.type;
+  gameChannel.subscribe(function(status){
+    if(status==='SUBSCRIBED'){
+      $('#lobby-status').textContent='Room ready! Share the code!';
+      $('#start-mp-btn').style.display='block';
+      updatePlayersList();
+      registerLobbyGame(G.roomCode,name,1);
+    }else if(status==='CHANNEL_ERROR'){
+      $('#lobby-status').textContent='Error creating room. Try again.';
     }
-  });
-  setupHostListeners();
-}
-
-function setupHostListeners(){
-  if(G.peer._lobbyListenerSet)return; // prevent duplicate listeners
-  G.peer._lobbyListenerSet=true;
-  G.peer.on('connection',conn=>{
-    let isRealPlayer=false;
-    let playerId=null;
-    conn.on('open',()=>{
-      conn.on('data',data=>{
-        // Handle lobby probes (legacy)
-        if(data.type==='lobby_probe'){
-          try{conn.send({type:'lobby_info',hostName:G.players[G.myId]?.name||'Unknown',playerCount:Object.keys(G.players).length,maxPlayers:99})}catch(e){}
-          setTimeout(()=>{try{conn.close()}catch(e){}},500);
-          return;
-        }
-        // On first 'join' message, register as real player
-        if(data.type==='join'&&!isRealPlayer){
-          isRealPlayer=true;
-          playerId=data.id;
-          G.connections.push(conn);
-        }
-        handleMPData(data,conn);
-      });
-      conn.on('close',()=>{
-        if(isRealPlayer){
-          G.connections=G.connections.filter(c=>c!==conn);
-          if(playerId)delete G.players[playerId];
-          updatePlayersList();
-          updateScoreboard();
-          broadcastMP({type:'players',players:G.players});
-        }
-      });
-    });
   });
 }
 
@@ -1525,43 +1475,50 @@ function showJoinScreen(){
 }
 
 function joinRoom(){
-  const code=$('#join-code').value.trim().toUpperCase();
+  var code=$('#join-code').value.trim().toUpperCase();
   if(code.length!==4)return;
+  doJoinGame(code);
+}
+
+function doJoinGame(code){
+  var name=$('#player-name').value.trim()||'Player';
   G.roomCode=code;
-  const name=$('#player-name').value.trim()||'Player';
   G.myId='player-'+Math.random().toString(36).substr(2,5);
   G.players={};
-  G.players[G.myId]={name,score:0};
+  G.players[G.myId]={name:name,score:0};
 
-  $('#lobby-status').textContent='Connecting...';
+  $('#lobby-status').textContent='Joining...';
   $('#join-input').style.display='none';
+  $('#room-code').textContent=code;
 
-  G.peer=makePeer(G.myId);
-  G.peer.on('open',()=>{
-    const conn=G.peer.connect('straw-'+code,{reliable:true});
-    conn.on('open',()=>{
-      G.connections=[conn];
-      conn.send({type:'join',id:G.myId,name});
-      conn.on('data',data=>handleMPData(data,conn));
-      conn.on('close',()=>{
-        $('#lobby-status').textContent='Disconnected from host';
-      });
-      $('#room-code').textContent=code;
-      $('#lobby-status').textContent='Connected! Waiting for host to start...';
-    });
-    conn.on('error',err=>{
-      $('#lobby-status').textContent='Could not connect. Check the code.';
-      $('#join-input').style.display='flex';
-    });
+  // Join Supabase channel
+  gameChannel=supabase.channel('game-'+code,{config:{broadcast:{self:false}}});
+  gameChannel.on('broadcast',{event:'game'},function(msg){
+    handleMPData(msg.payload);
   });
-  G.peer.on('error',err=>{
-    console.error('Peer error:',err);
-    $('#lobby-status').textContent='Connection error: '+err.type;
-    $('#join-input').style.display='flex';
+  gameChannel.subscribe(function(status){
+    if(status==='SUBSCRIBED'){
+      // Tell host we joined
+      broadcastMP({type:'join',id:G.myId,name:name});
+      $('#lobby-status').textContent='Connected! Waiting for host to start...';
+    }else if(status==='CHANNEL_ERROR'){
+      $('#lobby-status').textContent='Could not join. Try again.';
+      setTimeout(function(){showScreen('title-screen');startLobbyScanning()},2000);
+    }
   });
 }
 
-function handleMPData(data,conn){
+function quickJoinGame(code){
+  if(!requireName())return;
+  stopLobbyScanning();
+  initAudio();
+  G.isHost=false;G.isMultiplayer=true;
+  showScreen('multiplayer-screen');
+  $('#start-mp-btn').style.display='none';
+  doJoinGame(code);
+}
+
+function handleMPData(data){
   switch(data.type){
     case 'join':
       G.players[data.id]={name:data.name,score:0};
@@ -1571,8 +1528,7 @@ function handleMPData(data,conn){
       SFX.powerup();
       break;
     case 'players':
-      // Merge but keep our score
-      const myData=G.players[G.myId];
+      var myData=G.players[G.myId];
       G.players=data.players;
       if(myData)G.players[G.myId]=myData;
       else G.players[G.myId]={name:$('#player-name').value.trim()||'Player',score:0};
@@ -1590,60 +1546,20 @@ function handleMPData(data,conn){
     case 'score':
       if(G.players[data.id])G.players[data.id].score=data.score;
       updateScoreboard();
-      // Host relays scores to all other players
-      if(G.isHost)G.connections.forEach(c=>{try{if(c!==conn)c.send(data)}catch(e){}});
       break;
     case 'pick':
-      // Show other player's pick visually
       showRemotePick(data.x,data.y,data.stype);
-      // Host relays to others
-      if(G.isHost)G.connections.forEach(c=>{try{if(c!==conn)c.send(data)}catch(e){}});
       break;
     case 'cursor':
       showRemoteCursor(data.id,data.name,data.x,data.y);
-      // Host relays cursors to others
-      if(G.isHost)G.connections.forEach(c=>{try{if(c!==conn)c.send(data)}catch(e){}});
       break;
     case 'sake_attack':
       if(data.target===G.myId)receiveSakeHit(data.fromName);
-      // Forward to other players if host
-      if(G.isHost&&data.target!==G.myId)broadcastMP(data);
       break;
     case 'gameover':
       if(data.players)G.players=data.players;
       break;
   }
-}
-
-function broadcastMP(data){
-  G.connections.forEach(c=>{
-    try{c.send(data)}catch(e){}
-  });
-}
-function broadcastScore(){
-  broadcastMP({type:'score',id:G.myId,score:G.score});
-}
-
-function updatePlayersList(){
-  const list=$('#players-list');
-  list.innerHTML='';
-  for(const[id,p]of Object.entries(G.players)){
-    const tag=document.createElement('div');
-    tag.className='player-tag';
-    tag.textContent=(id===G.myId?'⭐ ':'')+p.name;
-    list.appendChild(tag);
-  }
-}
-function updateScoreboard(){
-  const entries=$('#scoreboard-entries');
-  const sorted=Object.entries(G.players).sort((a,b)=>b[1].score-a[1].score);
-  entries.innerHTML='';
-  sorted.forEach(([id,p])=>{
-    const d=document.createElement('div');
-    d.className='sb-entry'+(id===G.myId?' me':'');
-    d.innerHTML=`<span class="sb-name">${p.name}</span><span class="sb-score">${p.score}</span>`;
-    entries.appendChild(d);
-  });
 }
 
 function startMultiplayerGame(){
@@ -1655,20 +1571,44 @@ function startMultiplayerGame(){
   startGame();
 }
 
+function updatePlayersList(){
+  var list=$('#players-list');
+  list.innerHTML='';
+  for(var id in G.players){
+    var p=G.players[id];
+    var tag=document.createElement('div');
+    tag.className='player-tag';
+    tag.textContent=(id===G.myId?'⭐ ':'')+p.name;
+    list.appendChild(tag);
+  }
+}
+function updateScoreboard(){
+  var entries=$('#scoreboard-entries');
+  var sorted=Object.entries(G.players).sort(function(a,b){return b[1].score-a[1].score});
+  entries.innerHTML='';
+  sorted.forEach(function(item){
+    var id=item[0],p=item[1];
+    var d=document.createElement('div');
+    d.className='sb-entry'+(id===G.myId?' me':'');
+    d.innerHTML='<span class="sb-name">'+p.name+'</span><span class="sb-score">'+p.score+'</span>';
+    entries.appendChild(d);
+  });
+}
+
 function showRemotePick(nx,ny,stype){
-  const x=nx*window.innerWidth;
-  const y=ny*window.innerHeight;
-  const colors=stype==='golden'?['#FFD700','#FFF176']:['#E53935','#FF5252','#FF8A80'];
+  var x=nx*window.innerWidth;
+  var y=ny*window.innerHeight;
+  var colors=stype==='golden'?['#FFD700','#FFF176']:['#E53935','#FF5252','#FF8A80'];
   spawnParticles(x,y,5,colors,5);
 }
 
-const remoteCursors={};
+var remoteCursors={};
 function showRemoteCursor(id,name,nx,ny){
-  let el=remoteCursors[id];
+  var el=remoteCursors[id];
   if(!el){
     el=document.createElement('div');
     el.className='player-cursor';
-    el.innerHTML=`<span class="cursor-name">${name||'?'}</span>👆`;
+    el.innerHTML='<span class="cursor-name">'+(name||'?')+'</span>👆';
     field.appendChild(el);
     remoteCursors[id]=el;
   }
@@ -1678,11 +1618,17 @@ function showRemoteCursor(id,name,nx,ny){
 }
 
 // Send cursor position periodically
-document.addEventListener('pointermove',e=>{
+var lastCursorSend=0;
+document.addEventListener('pointermove',function(e){
   if(!G.isMultiplayer||!G.running)return;
-  const name=G.players[G.myId]?.name||'?';
-  broadcastMP({type:'cursor',id:G.myId,name,x:e.clientX/window.innerWidth,y:e.clientY/window.innerHeight});
+  var now=Date.now();
+  if(now-lastCursorSend<100)return; // throttle to 10fps
+  lastCursorSend=now;
+  var name=G.players[G.myId]?G.players[G.myId].name:'?';
+  broadcastMP({type:'cursor',id:G.myId,name:name,x:e.clientX/window.innerWidth,y:e.clientY/window.innerHeight});
 });
+
+
 
 
 /* ═══════════════════════════════════════════
@@ -1751,69 +1697,6 @@ function renderLiveGames(){
     list.appendChild(card);
   });
 }
-
-function quickJoinGame(code){
-  if(!requireName())return;
-  stopLobbyScanning();
-  initAudio();
-  const name=$('#player-name').value.trim()||'Player';
-  G.isHost=false;G.isMultiplayer=true;
-  G.roomCode=code;
-  G.myId='player-'+Math.random().toString(36).substr(2,5);
-  G.players={};
-  G.players[G.myId]={name,score:0};
-
-  showScreen('multiplayer-screen');
-  $('#room-code').textContent=code;
-  $('#lobby-status').textContent='Connecting...';
-  $('#join-input').style.display='none';
-  $('#start-mp-btn').style.display='none';
-
-  // Clean up any existing peer
-  if(G.peer){try{G.peer.destroy()}catch(e){}}
-
-  G.peer=makePeer(G.myId);
-  
-  var joinTimeout=setTimeout(function(){
-    $('#lobby-status').textContent='Game not found. Heading back...';
-    unregisterLobbyGame(code);
-    if(G.peer){try{G.peer.destroy()}catch(e){} G.peer=null}
-    setTimeout(function(){showScreen('title-screen');startLobbyScanning()},1500);
-  },8000);
-
-  G.peer.on('open',function(){
-    var conn=G.peer.connect('straw-'+code,{reliable:true});
-    conn.on('open',function(){
-      clearTimeout(joinTimeout);
-      G.connections=[conn];
-      conn.send({type:'join',id:G.myId,name:name});
-      conn.on('data',function(data){handleMPData(data,conn)});
-      conn.on('close',function(){
-        $('#lobby-status').textContent='Disconnected from host';
-      });
-      $('#room-code').textContent=code;
-      $('#lobby-status').textContent='Connected! Waiting for host to start...';
-    });
-    conn.on('error',function(err){
-      clearTimeout(joinTimeout);
-      $('#lobby-status').textContent='Game ended or is full. Heading back...';
-      unregisterLobbyGame(code);
-      setTimeout(function(){showScreen('title-screen');startLobbyScanning()},1500);
-    });
-  });
-  G.peer.on('error',function(err){
-    clearTimeout(joinTimeout);
-    console.error('Peer error:',err);
-    if(err.type==='peer-closed'||err.type==='unavailable-id'||err.type==='network'){
-      $('#lobby-status').textContent='Game not available. Heading back...';
-      unregisterLobbyGame(code);
-    }else{
-      $('#lobby-status').textContent='Connection issue. Heading back...';
-    }
-    setTimeout(function(){showScreen('title-screen');startLobbyScanning()},1500);
-  });
-}
-
 /* ═══════════════════════════════════════════
    TOUCH / POINTER HANDLING
    ═══════════════════════════════════════════ */
