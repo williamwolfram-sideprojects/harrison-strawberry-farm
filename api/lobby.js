@@ -6,7 +6,7 @@ const games = globalThis.__strawberry_lobby || (globalThis.__strawberry_lobby = 
 function cleanExpired() {
   const now = Date.now();
   for (const [id, game] of games) {
-    if (now - game.lastSeen > 120000) games.delete(id);
+    if (now - game.lastSeen > 30000) games.delete(id);
   }
 }
 

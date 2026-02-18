@@ -1738,29 +1738,48 @@ function quickJoinGame(code){
   $('#join-input').style.display='none';
   $('#start-mp-btn').style.display='none';
 
+  // Clean up any existing peer
+  if(G.peer){try{G.peer.destroy()}catch(e){}}
+
   G.peer=new Peer(G.myId,{debug:0});
-  G.peer.on('open',()=>{
-    const conn=G.peer.connect('straw-'+code,{reliable:true});
-    conn.on('open',()=>{
+  
+  var joinTimeout=setTimeout(function(){
+    $('#lobby-status').textContent='Game not found. Heading back...';
+    unregisterLobbyGame(code);
+    if(G.peer){try{G.peer.destroy()}catch(e){} G.peer=null}
+    setTimeout(function(){showScreen('title-screen');startLobbyScanning()},1500);
+  },8000);
+
+  G.peer.on('open',function(){
+    var conn=G.peer.connect('straw-'+code,{reliable:true});
+    conn.on('open',function(){
+      clearTimeout(joinTimeout);
       G.connections=[conn];
-      conn.send({type:'join',id:G.myId,name});
-      conn.on('data',data=>handleMPData(data,conn));
-      conn.on('close',()=>{
+      conn.send({type:'join',id:G.myId,name:name});
+      conn.on('data',function(data){handleMPData(data,conn)});
+      conn.on('close',function(){
         $('#lobby-status').textContent='Disconnected from host';
       });
       $('#room-code').textContent=code;
       $('#lobby-status').textContent='Connected! Waiting for host to start...';
     });
-    conn.on('error',err=>{
-      $('#lobby-status').textContent='Could not connect. Game may have ended.';
-      setTimeout(()=>{showScreen('title-screen');
-startLobbyScanning();startLobbyScanning()},2000);
+    conn.on('error',function(err){
+      clearTimeout(joinTimeout);
+      $('#lobby-status').textContent='Game ended or is full. Heading back...';
+      unregisterLobbyGame(code);
+      setTimeout(function(){showScreen('title-screen');startLobbyScanning()},1500);
     });
   });
-  G.peer.on('error',err=>{
-    $('#lobby-status').textContent='Connection error: '+err.type;
-    setTimeout(()=>{showScreen('title-screen');
-startLobbyScanning();startLobbyScanning()},2000);
+  G.peer.on('error',function(err){
+    clearTimeout(joinTimeout);
+    console.error('Peer error:',err);
+    if(err.type==='peer-closed'||err.type==='unavailable-id'||err.type==='network'){
+      $('#lobby-status').textContent='Game not available. Heading back...';
+      unregisterLobbyGame(code);
+    }else{
+      $('#lobby-status').textContent='Connection issue. Heading back...';
+    }
+    setTimeout(function(){showScreen('title-screen');startLobbyScanning()},1500);
   });
 }
 
