@@ -1441,16 +1441,35 @@ function showHostScreen(){
 }
 
 function setupHostListeners(){
+  if(G.peer._lobbyListenerSet)return; // prevent duplicate listeners
+  G.peer._lobbyListenerSet=true;
   G.peer.on('connection',conn=>{
+    let isRealPlayer=false;
+    let playerId=null;
     conn.on('open',()=>{
-      G.connections.push(conn);
-      conn.on('data',data=>handleMPData(data,conn));
+      conn.on('data',data=>{
+        // Handle lobby probes separately - don't add to connections
+        if(data.type==='lobby_probe'){
+          try{conn.send({type:'lobby_info',hostName:G.players[G.myId]?.name||'Unknown',playerCount:Object.keys(G.players).length,maxPlayers:99})}catch(e){}
+          setTimeout(()=>{try{conn.close()}catch(e){}},500);
+          return;
+        }
+        // On first 'join' message, register as real player
+        if(data.type==='join'&&!isRealPlayer){
+          isRealPlayer=true;
+          playerId=data.id;
+          G.connections.push(conn);
+        }
+        handleMPData(data,conn);
+      });
       conn.on('close',()=>{
-        G.connections=G.connections.filter(c=>c!==conn);
-        delete G.players[conn.peer];
-        updatePlayersList();
-        updateScoreboard();
-        broadcastMP({type:'players',players:G.players});
+        if(isRealPlayer){
+          G.connections=G.connections.filter(c=>c!==conn);
+          if(playerId)delete G.players[playerId];
+          updatePlayersList();
+          updateScoreboard();
+          broadcastMP({type:'players',players:G.players});
+        }
       });
     });
   });
@@ -1532,19 +1551,19 @@ function handleMPData(data,conn){
     case 'score':
       if(G.players[data.id])G.players[data.id].score=data.score;
       updateScoreboard();
+      // Host relays scores to all other players
+      if(G.isHost)G.connections.forEach(c=>{try{if(c!==conn)c.send(data)}catch(e){}});
       break;
     case 'pick':
       // Show other player's pick visually
       showRemotePick(data.x,data.y,data.stype);
+      // Host relays to others
+      if(G.isHost)G.connections.forEach(c=>{try{if(c!==conn)c.send(data)}catch(e){}});
       break;
     case 'cursor':
       showRemoteCursor(data.id,data.name,data.x,data.y);
-      break;
-    case 'lobby_probe':
-      // Respond with game info for lobby browser
-      if(G.isHost){
-        try{conn.send({type:'lobby_info',hostName:G.players[G.myId]?.name||'Unknown',playerCount:Object.keys(G.players).length,maxPlayers:99})}catch(e){}
-      }
+      // Host relays cursors to others
+      if(G.isHost)G.connections.forEach(c=>{try{if(c!==conn)c.send(data)}catch(e){}});
       break;
     case 'sake_attack':
       if(data.target===G.myId)receiveSakeHit(data.fromName);
