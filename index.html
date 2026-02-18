@@ -44,6 +44,28 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-u
 }
 
 /* ═══════════════════════════════════════════
+   SPEED ROUND BORDER GLOW
+   ═══════════════════════════════════════════ */
+#game-container.speed-round{
+  box-shadow:inset 0 0 40px rgba(255,0,0,0.5),inset 0 0 80px rgba(255,0,0,0.2);
+  animation:speedPulse 0.5s ease-in-out infinite alternate;
+}
+@keyframes speedPulse{
+  0%{box-shadow:inset 0 0 40px rgba(255,0,0,0.4),inset 0 0 80px rgba(255,0,0,0.15)}
+  100%{box-shadow:inset 0 0 60px rgba(255,0,0,0.7),inset 0 0 120px rgba(255,0,0,0.3)}
+}
+
+/* ═══════════════════════════════════════════
+   GOLDEN FLASH
+   ═══════════════════════════════════════════ */
+.golden-flash{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(255,215,0,0.3);z-index:200;pointer-events:none;
+  animation:goldenFlashAnim 0.4s ease-out forwards;
+}
+@keyframes goldenFlashAnim{0%{opacity:1}100%{opacity:0}}
+
+/* ═══════════════════════════════════════════
    SKY ELEMENTS
    ═══════════════════════════════════════════ */
 .sun{
@@ -113,6 +135,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-u
   z-index:10;filter:drop-shadow(2px 4px 3px rgba(0,0,0,0.2));
   animation:strawGrow 0.4s var(--bounce) forwards;
   transform:scale(0);
+  min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;
 }
 .strawberry:hover{transform:scale(1.15)!important}
 .strawberry:active{transform:scale(0.9)!important}
@@ -128,11 +151,11 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-u
 }
 
 .straw-body{
-  font-size:var(--size,36px);line-height:1;
+  font-size:var(--size,42px);line-height:1;
   text-shadow:1px 2px 2px rgba(0,0,0,0.15);
 }
 .strawberry.golden .straw-body{filter:brightness(1.2) saturate(1.5);text-shadow:0 0 10px rgba(255,215,0,0.6)}
-.strawberry.giant .straw-body{--size:56px}
+.strawberry.giant .straw-body{--size:62px}
 .strawberry.rotten{filter:hue-rotate(80deg) brightness(0.7) saturate(0.8)}
 
 .strawberry.golden::after{
@@ -146,6 +169,122 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-u
 @keyframes wiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(3deg)}75%{transform:rotate(-3deg)}}
 
 /* ═══════════════════════════════════════════
+   RAINBOW STRAWBERRY
+   ═══════════════════════════════════════════ */
+.strawberry.rainbow .straw-body{
+  animation:rainbowHue 0.8s linear infinite;
+  filter:saturate(2) brightness(1.2);
+  --size:48px;
+}
+@keyframes rainbowHue{0%{filter:hue-rotate(0deg) saturate(2) brightness(1.2)}100%{filter:hue-rotate(360deg) saturate(2) brightness(1.2)}}
+.strawberry.rainbow::before{
+  content:'';position:absolute;top:50%;left:50%;width:60px;height:60px;
+  background:conic-gradient(red,orange,yellow,green,blue,violet,red);
+  border-radius:50%;opacity:0.3;transform:translate(-50%,-50%);
+  animation:rainbowPulse 1s ease-in-out infinite alternate;z-index:-1;
+}
+@keyframes rainbowPulse{0%{transform:translate(-50%,-50%) scale(0.8);opacity:0.2}100%{transform:translate(-50%,-50%) scale(1.4);opacity:0.4}}
+.rainbow-trail{
+  position:absolute;pointer-events:none;z-index:8;
+  width:10px;height:10px;border-radius:50%;
+  animation:trailFade 0.6s ease-out forwards;
+}
+@keyframes trailFade{0%{transform:scale(1);opacity:0.7}100%{transform:scale(0);opacity:0}}
+
+/* ═══════════════════════════════════════════
+   RAIN STRAWBERRIES (falling from top)
+   ═══════════════════════════════════════════ */
+.strawberry.rain-drop{
+  animation:rainFall var(--fall-dur,2s) linear forwards!important;
+  transform:scale(1)!important;
+}
+@keyframes rainFall{
+  0%{transform:translateY(0) rotate(0deg);opacity:1}
+  90%{opacity:1}
+  100%{transform:translateY(var(--fall-dist,400px)) rotate(360deg);opacity:0.5}
+}
+
+/* ═══════════════════════════════════════════
+   STREAK ANNOUNCEMENT
+   ═══════════════════════════════════════════ */
+.streak-announce{
+  position:fixed;top:30%;left:50%;transform:translate(-50%,-50%) scale(0);
+  font-size:clamp(36px,10vw,72px);font-weight:900;color:#fff;z-index:300;
+  text-shadow:3px 3px 0 rgba(0,0,0,0.3),0 0 40px rgba(255,215,0,0.8);
+  pointer-events:none;
+  animation:streakPop 1.2s var(--bounce) forwards;
+  white-space:nowrap;
+}
+@keyframes streakPop{
+  0%{transform:translate(-50%,-50%) scale(0) rotate(-15deg);opacity:0}
+  20%{transform:translate(-50%,-50%) scale(1.3) rotate(5deg);opacity:1}
+  40%{transform:translate(-50%,-50%) scale(1) rotate(0deg);opacity:1}
+  80%{transform:translate(-50%,-50%) scale(1) rotate(0deg);opacity:1}
+  100%{transform:translate(-50%,-50%) scale(0.5) rotate(10deg);opacity:0}
+}
+.streak-announce.amazing{color:#FFD700;text-shadow:3px 3px 0 #E65100,0 0 40px rgba(255,215,0,0.8)}
+.streak-announce.legendary{color:#E040FB;text-shadow:3px 3px 0 #6A1B9A,0 0 40px rgba(224,64,251,0.8)}
+.streak-announce.godmode{
+  background:linear-gradient(135deg,#FF0000,#FF8800,#FFFF00,#00FF00,#0088FF,#8800FF);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  text-shadow:none;filter:drop-shadow(3px 3px 0 rgba(0,0,0,0.3));
+}
+
+/* ═══════════════════════════════════════════
+   RAIN EVENT ANNOUNCEMENT
+   ═══════════════════════════════════════════ */
+.rain-announce{
+  position:fixed;top:20%;left:50%;transform:translate(-50%,-50%) scale(0);
+  font-size:clamp(28px,8vw,56px);font-weight:900;color:#FF1744;z-index:300;
+  text-shadow:3px 3px 0 rgba(0,0,0,0.3),0 0 30px rgba(255,23,68,0.6);
+  pointer-events:none;
+  animation:rainAnnouncePop 2s var(--bounce) forwards;
+  white-space:nowrap;
+}
+@keyframes rainAnnouncePop{
+  0%{transform:translate(-50%,-50%) scale(0);opacity:0}
+  15%{transform:translate(-50%,-50%) scale(1.2);opacity:1}
+  30%{transform:translate(-50%,-50%) scale(1);opacity:1}
+  75%{transform:translate(-50%,-50%) scale(1);opacity:1}
+  100%{transform:translate(-50%,-50%) scale(0.3);opacity:0}
+}
+
+/* ═══════════════════════════════════════════
+   CONFETTI
+   ═══════════════════════════════════════════ */
+.confetti-piece{
+  position:fixed;width:10px;height:10px;z-index:400;pointer-events:none;
+  animation:confettiFall var(--conf-dur,3s) ease-in forwards;
+}
+@keyframes confettiFall{
+  0%{transform:translateY(0) rotate(0deg);opacity:1}
+  100%{transform:translateY(100vh) rotate(var(--conf-rot,720deg));opacity:0}
+}
+
+/* ═══════════════════════════════════════════
+   SCREEN PULSE (big combo)
+   ═══════════════════════════════════════════ */
+.screen-pulse{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  z-index:150;pointer-events:none;
+  border:8px solid;border-radius:0;
+  animation:screenPulseAnim 0.4s ease-out forwards;
+}
+@keyframes screenPulseAnim{
+  0%{opacity:0.8;border-width:8px}
+  100%{opacity:0;border-width:0px}
+}
+
+/* ═══════════════════════════════════════════
+   RANK BADGE
+   ═══════════════════════════════════════════ */
+.rank-badge{
+  font-size:48px;margin:5px 0;animation:rankPop 0.6s var(--bounce);
+}
+@keyframes rankPop{0%{transform:scale(0) rotate(-30deg)}100%{transform:scale(1) rotate(0deg)}}
+.rank-label{font-size:20px;font-weight:800;margin-bottom:10px}
+
+/* ═══════════════════════════════════════════
    BIRDS
    ═══════════════════════════════════════════ */
 .bird{
@@ -153,6 +292,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-u
   animation:birdFly 0.4s ease-in-out infinite alternate;
   filter:drop-shadow(2px 3px 2px rgba(0,0,0,0.2));
   transition:transform 0.1s;
+  min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;
 }
 .bird:hover{transform:scale(1.2)}
 @keyframes birdFly{0%{transform:translateY(0) scaleX(1)}100%{transform:translateY(-8px) scaleX(-1)}}
@@ -167,6 +307,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-u
   animation:powerFloat 1s ease-in-out infinite alternate, strawGrow 0.4s var(--bounce) forwards;
   transform:scale(0);
   filter:drop-shadow(0 0 8px rgba(255,255,255,0.8));
+  min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;
 }
 @keyframes powerFloat{0%{transform:translateY(0) scale(1)}100%{transform:translateY(-10px) scale(1.1)}}
 .powerup.collected{animation:powerCollect 0.4s ease-out forwards!important;pointer-events:none}
@@ -415,6 +556,13 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-u
 .final-lb-entry:nth-child(2){background:#FFF9C4;color:#F57F17}
 .final-lb-entry:nth-child(3){background:#F5F5F5;color:#666}
 
+/* Quick restart hint */
+.restart-hint{
+  margin-top:12px;font-size:13px;color:#999;font-weight:600;
+  animation:hintPulse 2s ease-in-out infinite;
+}
+@keyframes hintPulse{0%,100%{opacity:0.5}50%{opacity:1}}
+
 /* ═══════════════════════════════════════════
    SOUND TOGGLE
    ═══════════════════════════════════════════ */
@@ -456,6 +604,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-u
   animation:sakeFloat 1.5s ease-in-out infinite;
   filter:drop-shadow(0 2px 6px rgba(0,0,0,0.3));
   transition:transform 0.2s var(--bounce);
+  min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;
 }
 .sake-item:active{transform:scale(0.8)}
 .sake-item.collected{animation:popOut 0.3s ease-out forwards}
@@ -656,6 +805,8 @@ document.addEventListener('gesturestart', function(e) { e.preventDefault(); }, {
   <div class="screen hidden" id="gameover-screen">
     <div class="gameover-card">
       <h2>⏰ Time's Up!</h2>
+      <div class="rank-badge" id="rank-badge"></div>
+      <div class="rank-label" id="rank-label"></div>
       <div class="final-score" id="final-score">0</div>
       <div class="stats">
         <div class="stat"><div class="stat-label">Picked</div><div class="stat-value" id="stat-picked">0</div></div>
@@ -668,6 +819,7 @@ document.addEventListener('gesturestart', function(e) { e.preventDefault(); }, {
         <button class="btn btn-primary" onclick="playAgain()">🔄 Play Again</button>
         <button class="btn btn-small btn-secondary" onclick="backToTitle()">🏠 Menu</button>
       </div>
+      <div class="restart-hint">Tap anywhere or press SPACE to restart</div>
     </div>
   </div>
 </div>
@@ -677,9 +829,9 @@ document.addEventListener('gesturestart', function(e) { e.preventDefault(); }, {
    GAME STATE
    ═══════════════════════════════════════════ */
 const G = {
-  score:0,picked:0,combo:0,maxCombo:0,goldenPicked:0,rottenHit:0,
+  score:0,picked:0,combo:0,maxCombo:0,goldenPicked:0,rottenHit:0,rainbowPicked:0,
   timeLeft:60,roundDuration:60,
-  running:false,
+  running:false,gameOverShown:false,
   strawberries:[],birds:[],powerups:[],
   activePowers:{},
   spawnRate:800,birdRate:8000,powerupRate:12000,
@@ -688,6 +840,9 @@ const G = {
   players:{},myId:'',roomCode:'',
   soundOn:true,audioCtx:null,
   sakeAmmo:0,isDrunk:false,drunkTimer:null,sakeItems:[],
+  speedRoundActive:false,
+  lastRainEvent:0,
+  streakShown:{},
 };
 
 const $=s=>document.querySelector(s);
@@ -763,6 +918,11 @@ function playNoise(dur,vol=0.08){
   src.connect(filter);filter.connect(gain);gain.connect(ctx.destination);
   src.start();
 }
+
+function playChord(freqs,dur,type='sine',vol=0.03){
+  freqs.forEach(f=>playTone(f,dur,type,vol));
+}
+
 const SFX={
   pick(){playTone(880,0.12,'sine',0.12);playTone(1100,0.1,'sine',0.08);playNoise(0.05,0.04)},
   goldenPick(){playTone(1200,0.15,'sine',0.15);playTone(1500,0.12,'sine',0.1);playTone(1800,0.1,'sine',0.08);setTimeout(()=>playTone(2200,0.2,'sine',0.1),80)},
@@ -777,19 +937,57 @@ const SFX={
   sakeThrow(){playTone(300,0.2,'sawtooth',0.08);playTone(200,0.15,'sawtooth',0.06)},
   sakeHit(){playTone(150,0.4,'sawtooth',0.12);playTone(100,0.3,'square',0.08);playNoise(0.3,0.1);setTimeout(()=>{playTone(80,0.3,'sawtooth',0.06)},150)},
   sakeSplash(){[200,180,160,140].forEach((f,i)=>setTimeout(()=>playTone(f,0.15,'sine',0.06),i*50))},
+  rainbow(){
+    [523,659,784,1047,1319,1568].forEach((f,i)=>setTimeout(()=>playTone(f,0.2,'sine',0.1),i*50));
+    setTimeout(()=>playChord([1047,1319,1568],0.4,'sine',0.06),350);
+  },
+  streakAmazing(){[880,1100,1320,1760].forEach((f,i)=>setTimeout(()=>playTone(f,0.15,'square',0.08),i*60))},
+  streakLegendary(){[660,880,1100,1320,1760].forEach((f,i)=>setTimeout(()=>playTone(f,0.18,'square',0.1),i*70))},
+  streakGodMode(){[440,660,880,1100,1320,1760,2200].forEach((f,i)=>setTimeout(()=>playTone(f,0.2,'square',0.12),i*50))},
+  strawberryRain(){[523,659,784,880,784,659].forEach((f,i)=>setTimeout(()=>playTone(f,0.15,'triangle',0.1),i*80))},
+  speedRound(){playTone(440,0.1,'square',0.12);playTone(660,0.1,'square',0.12);setTimeout(()=>{playTone(880,0.15,'square',0.15)},120)},
 };
 
+/* ═══════════════════════════════════════════
+   BETTER BACKGROUND MUSIC - Chord progression
+   ═══════════════════════════════════════════ */
 let bgMusicInterval=null;
+let bgMusicBeat=0;
 function startBgMusic(){
   if(bgMusicInterval)return;
-  const notes=[262,294,330,349,392,440,392,349,330,294];
-  let idx=0;
+  // C-G-Am-F chord progression with melody
+  const chords=[
+    {bass:131,chord:[262,330,392],melody:[523,659,784,659]},  // C
+    {bass:196,chord:[247,392,494],melody:[784,659,587,494]},  // G
+    {bass:220,chord:[262,330,440],melody:[523,440,523,659]},  // Am
+    {bass:175,chord:[262,349,440],melody:[440,523,440,349]},  // F
+  ];
+  let chordIdx=0;
+  let noteInChord=0;
+  bgMusicBeat=0;
   bgMusicInterval=setInterval(()=>{
     if(!G.soundOn||!G.running)return;
-    playTone(notes[idx],0.2,'triangle',0.03);
-    if(idx%2===0)playTone(notes[idx]/2,0.3,'triangle',0.02);
-    idx=(idx+1)%notes.length;
-  },300);
+    const ch=chords[chordIdx];
+    const melNote=ch.melody[noteInChord];
+    // Melody note
+    playTone(melNote,0.22,'triangle',0.04);
+    // On beat 0 of chord, play bass + chord
+    if(noteInChord===0){
+      playTone(ch.bass,0.5,'triangle',0.025);
+      ch.chord.forEach(f=>playTone(f,0.4,'sine',0.015));
+    }
+    // Light arpeggiation on beat 2
+    if(noteInChord===2){
+      playTone(ch.chord[1],0.3,'sine',0.02);
+    }
+    noteInChord++;
+    if(noteInChord>=4){noteInChord=0;chordIdx=(chordIdx+1)%chords.length}
+    bgMusicBeat++;
+    // Speed round: add intensity
+    if(G.speedRoundActive&&bgMusicBeat%2===0){
+      playTone(melNote*2,0.1,'square',0.02);
+    }
+  },250);
 }
 function stopBgMusic(){clearInterval(bgMusicInterval);bgMusicInterval=null}
 
@@ -798,6 +996,16 @@ function toggleSound(){
   $('#sound-toggle').textContent=G.soundOn?'🔊':'🔇';
   if(G.soundOn){initAudio();if(G.running)startBgMusic()}
   else stopBgMusic();
+}
+
+/* ═══════════════════════════════════════════
+   HAPTIC FEEDBACK
+   ═══════════════════════════════════════════ */
+function haptic(ms){
+  try{if(navigator.vibrate)navigator.vibrate(ms||15)}catch(e){}
+}
+function hapticPattern(pattern){
+  try{if(navigator.vibrate)navigator.vibrate(pattern)}catch(e){}
 }
 
 /* ═══════════════════════════════════════════
@@ -828,16 +1036,114 @@ function spawnScorePopup(x,y,text,cls=''){
 }
 
 /* ═══════════════════════════════════════════
+   CONFETTI SYSTEM
+   ═══════════════════════════════════════════ */
+function spawnConfetti(count=60){
+  const colors=['#E53935','#FF6F00','#FFD700','#43A047','#1E88E5','#8E24AA','#FF1744','#00E676'];
+  for(let i=0;i<count;i++){
+    const p=document.createElement('div');
+    p.className='confetti-piece';
+    const c=colors[Math.floor(Math.random()*colors.length)];
+    const left=Math.random()*100;
+    const dur=2+Math.random()*2;
+    const rot=360+Math.random()*720;
+    const w=6+Math.random()*8;
+    const h=w*(0.4+Math.random()*0.6);
+    const delay=Math.random()*0.5;
+    p.style.cssText=`left:${left}%;top:-20px;width:${w}px;height:${h}px;background:${c};border-radius:${Math.random()>0.5?'50%':'2px'};--conf-dur:${dur}s;--conf-rot:${rot}deg;animation-delay:${delay}s`;
+    document.body.appendChild(p);
+    setTimeout(()=>p.remove(),(dur+delay)*1000+100);
+  }
+}
+
+/* ═══════════════════════════════════════════
+   SCREEN EFFECTS
+   ═══════════════════════════════════════════ */
+function goldenFlash(){
+  const f=document.createElement('div');
+  f.className='golden-flash';
+  document.body.appendChild(f);
+  setTimeout(()=>f.remove(),400);
+}
+function screenPulse(color){
+  const p=document.createElement('div');
+  p.className='screen-pulse';
+  p.style.borderColor=color;
+  document.body.appendChild(p);
+  setTimeout(()=>p.remove(),400);
+}
+
+/* ═══════════════════════════════════════════
+   STREAK ANNOUNCEMENTS
+   ═══════════════════════════════════════════ */
+function showStreakAnnounce(text,cls){
+  const el=document.createElement('div');
+  el.className='streak-announce '+cls;
+  el.textContent=text;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),1300);
+}
+function checkStreaks(){
+  if(G.combo===10&&!G.streakShown[10]){
+    G.streakShown[10]=true;
+    showStreakAnnounce('🔥 AMAZING!','amazing');
+    SFX.streakAmazing();
+    screenPulse('#FFD700');
+    addScore(50); // streak bonus
+    spawnScorePopup(window.innerWidth/2,window.innerHeight*0.4,'+50 STREAK BONUS','combo');
+    hapticPattern([50,30,50]);
+  }
+  if(G.combo===20&&!G.streakShown[20]){
+    G.streakShown[20]=true;
+    showStreakAnnounce('⚡ LEGENDARY!','legendary');
+    SFX.streakLegendary();
+    screenPulse('#E040FB');
+    addScore(150);
+    spawnScorePopup(window.innerWidth/2,window.innerHeight*0.4,'+150 STREAK BONUS','combo');
+    hapticPattern([80,40,80,40,80]);
+  }
+  if(G.combo===30&&!G.streakShown[30]){
+    G.streakShown[30]=true;
+    showStreakAnnounce('🌈 GOD MODE!','godmode');
+    SFX.streakGodMode();
+    screenPulse('#FF0000');
+    screenPulse('#00FF00');
+    addScore(300);
+    spawnConfetti(30);
+    spawnScorePopup(window.innerWidth/2,window.innerHeight*0.4,'+300 STREAK BONUS','combo');
+    hapticPattern([100,50,100,50,100,50,100]);
+  }
+}
+
+/* ═══════════════════════════════════════════
+   RAINBOW TRAIL
+   ═══════════════════════════════════════════ */
+function spawnRainbowTrail(x,y){
+  const colors=['#FF0000','#FF8800','#FFFF00','#00FF00','#0088FF','#8800FF'];
+  for(let i=0;i<6;i++){
+    const t=document.createElement('div');
+    t.className='rainbow-trail';
+    t.style.cssText=`left:${x+Math.random()*20-10}px;top:${y+Math.random()*20-10}px;width:${8+Math.random()*6}px;height:${8+Math.random()*6}px;background:${colors[i]}`;
+    container.appendChild(t);
+    setTimeout(()=>t.remove(),600);
+  }
+}
+
+/* ═══════════════════════════════════════════
    STRAWBERRY SPAWNING
    ═══════════════════════════════════════════ */
-function spawnStrawberry(){
+function spawnStrawberry(forceType){
   if(!G.running)return;
   const el=document.createElement('div');
   const rand=Math.random();
-  let type='normal',emoji='🍓',points=10,cls='';
-  if(rand<0.04){type='golden';emoji='🍓';cls='golden';points=50}
-  else if(rand<0.10){type='giant';emoji='🍓';cls='giant';points=25}
-  else if(rand<0.18){type='rotten';emoji='🍓';cls='rotten';points=-15}
+  let type=forceType||'normal',emoji='🍓',points=10,cls='';
+
+  if(!forceType){
+    if(rand<0.02){type='rainbow';emoji='🍓';cls='rainbow';points=100}
+    else if(rand<0.06){type='golden';emoji='🍓';cls='golden';points=50}
+    else if(rand<0.12){type='giant';emoji='🍓';cls='giant';points=25}
+    else if(rand<0.20){type='rotten';emoji='🍓';cls='rotten';points=-15}
+  }
 
   el.className='strawberry growing'+(cls?' '+cls:'');
   el.dataset.type=type;
@@ -854,8 +1160,17 @@ function spawnStrawberry(){
   field.appendChild(el);
   G.strawberries.push(el);
 
-  // Auto-despawn normal/golden after some time
-  const lifespan=type==='golden'?3500:type==='giant'?5000:6000;
+  // Rainbow trail effect
+  if(type==='rainbow'){
+    let trailInt=setInterval(()=>{
+      if(!el.parentNode||el.classList.contains('picked')){clearInterval(trailInt);return}
+      const r=el.getBoundingClientRect();
+      spawnRainbowTrail(r.left+r.width/2-container.getBoundingClientRect().left,r.top+r.height/2-container.getBoundingClientRect().top);
+    },200);
+  }
+
+  // Auto-despawn after some time
+  const lifespan=type==='rainbow'?4000:type==='golden'?3500:type==='giant'?5000:6000;
   setTimeout(()=>{
     if(el.parentNode&&!el.classList.contains('picked')){
       el.classList.add('picked');
@@ -863,6 +1178,61 @@ function spawnStrawberry(){
       G.strawberries=G.strawberries.filter(s=>s!==el);
     }
   },lifespan);
+}
+
+/* ═══════════════════════════════════════════
+   STRAWBERRY RAIN EVENT
+   ═══════════════════════════════════════════ */
+function triggerStrawberryRain(){
+  if(!G.running)return;
+  G.lastRainEvent=Date.now();
+  SFX.strawberryRain();
+  hapticPattern([30,20,30,20,30]);
+
+  // Show announcement
+  const ann=document.createElement('div');
+  ann.className='rain-announce';
+  ann.textContent='🍓🌧️ STRAWBERRY RAIN! 🌧️🍓';
+  document.body.appendChild(ann);
+  setTimeout(()=>ann.remove(),2200);
+
+  // Spawn 15-20 strawberries rapidly from the top
+  const count=15+Math.floor(Math.random()*6);
+  for(let i=0;i<count;i++){
+    setTimeout(()=>{
+      if(!G.running)return;
+      const el=document.createElement('div');
+      const rand=Math.random();
+      let type='normal',cls='',points=10;
+      if(rand<0.1){type='golden';cls='golden';points=50}
+      else if(rand<0.2){type='giant';cls='giant';points=25}
+
+      el.className='strawberry rain-drop'+(cls?' '+cls:'');
+      el.dataset.type=type;
+      el.dataset.points=points;
+      el.innerHTML='<div class="straw-body">🍓</div>';
+
+      const fw=field.clientWidth,fh=field.clientHeight;
+      const x=10+Math.random()*(fw-40);
+      const fallDist=fh*0.8;
+      el.style.left=x+'px';
+      el.style.top='0px';
+      el.style.setProperty('--fall-dist',fallDist+'px');
+      el.style.setProperty('--fall-dur',(1.5+Math.random()*1.5)+'s');
+
+      el.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();pickStrawberry(el)},{passive:false});
+      field.appendChild(el);
+      G.strawberries.push(el);
+
+      // Remove after falling
+      setTimeout(()=>{
+        if(el.parentNode&&!el.classList.contains('picked')){
+          el.remove();
+          G.strawberries=G.strawberries.filter(s=>s!==el);
+        }
+      },3500);
+    },i*100);
+  }
 }
 
 function pickStrawberry(el){
@@ -874,9 +1244,13 @@ function pickStrawberry(el){
   const cx=rect.left+rect.width/2;
   const cy=rect.top+rect.height/2;
 
+  // Haptic feedback
+  haptic(type==='rainbow'?40:type==='golden'?25:15);
+
   if(type==='rotten'){
     G.rottenHit++;
     G.combo=0;
+    G.streakShown={};
     updateCombo();
     pts=G.activePowers.shield?0:-15;
     if(pts<0){
@@ -893,27 +1267,41 @@ function pickStrawberry(el){
     G.combo++;
     if(G.combo>G.maxCombo)G.maxCombo=G.combo;
     if(type==='golden')G.goldenPicked++;
+    if(type==='rainbow')G.rainbowPicked++;
 
     let mult=1;
     if(G.activePowers.doublePoints)mult*=2;
-    if(G.combo>=10)mult*=3;
+    if(G.combo>=30)mult*=4;
+    else if(G.combo>=20)mult*=3;
+    else if(G.combo>=10)mult*=3;
     else if(G.combo>=5)mult*=2;
     pts=pts*mult;
 
     addScore(pts);
     updateCombo();
+    checkStreaks();
     $('#picked-count').textContent=G.picked;
 
-    const colors=type==='golden'?['#FFD700','#FFF176','#FFB300','#FF8F00']:type==='giant'?['#E53935','#FF5252','#FF8A80','#43A047']:['#E53935','#FF5252','#FF8A80','#EF9A9A'];
-    spawnParticles(cx,cy,type==='golden'?16:type==='giant'?12:8,colors);
+    const colors=type==='rainbow'?['#FF0000','#FF8800','#FFFF00','#00FF00','#0088FF','#8800FF']:type==='golden'?['#FFD700','#FFF176','#FFB300','#FF8F00']:type==='giant'?['#E53935','#FF5252','#FF8A80','#43A047']:['#E53935','#FF5252','#FF8A80','#EF9A9A'];
+    spawnParticles(cx,cy,type==='rainbow'?20:type==='golden'?16:type==='giant'?12:8,colors);
 
     let label='+'+pts;
     if(mult>1)label+=` (x${mult})`;
     spawnScorePopup(cx,cy,label,G.combo>=5?'combo':'');
 
-    if(type==='golden')SFX.goldenPick();
-    else SFX.pick();
-    if(G.combo>0&&G.combo%5===0){SFX.combo();screenShake()}
+    if(type==='rainbow'){
+      SFX.rainbow();
+      goldenFlash();
+      screenPulse('#FF0000');
+      spawnConfetti(15);
+      hapticPattern([30,20,30,20,30,20,30]);
+    }else if(type==='golden'){
+      SFX.goldenPick();
+      goldenFlash();
+    }else{
+      SFX.pick();
+    }
+    if(G.combo>0&&G.combo%5===0){SFX.combo();screenShake();screenPulse('#FFD700')}
   }
 
   setTimeout(()=>el.remove(),400);
@@ -991,6 +1379,7 @@ function scareBird(el){
   el.classList.add('scared');
   SFX.birdScare();
   addScore(5);
+  haptic(10);
   const rect=el.getBoundingClientRect();
   spawnScorePopup(rect.left,rect.top,'+5 🐦','');
   spawnParticles(rect.left+14,rect.top+14,6,['#8D6E63','#BCAAA4','#D7CCC8'],5);
@@ -1043,6 +1432,7 @@ function collectPowerup(el){
   const dur=parseInt(el.dataset.powerDur);
   const label=el.dataset.powerLabel;
   SFX.powerup();
+  haptic(20);
 
   const rect=el.getBoundingClientRect();
   spawnScorePopup(rect.left,rect.top,label+'!','combo');
@@ -1102,7 +1492,7 @@ function startMagnet(){
 function stopMagnet(){clearInterval(magnetInterval);magnetInterval=null}
 
 // Update powerup bar timers
-setInterval(()=>{if(G.running)renderPowerupBar()},200);
+let powerupBarInterval=null;
 
 
 /* ═══════════════════════════════════════════
@@ -1150,6 +1540,7 @@ function collectSake(el){
 function updateSakeAmmo(){
   const ammoEl=$('#sake-ammo');
   const countEl=$('#sake-count');
+  if(!ammoEl||!countEl)return;
   countEl.textContent=G.sakeAmmo;
   if(G.sakeAmmo>0){ammoEl.classList.add('has-ammo')}
   else{ammoEl.classList.remove('has-ammo');disableSakeTargeting()}
@@ -1249,6 +1640,7 @@ function receiveSakeHit(fromName){
   
   // Combo reset
   G.combo=0;
+  G.streakShown={};
   updateCombo();
   
   // Reverse controls for 4 seconds - clicks register offset
@@ -1267,6 +1659,71 @@ function receiveSakeHit(fromName){
 }
 
 /* ═══════════════════════════════════════════
+   PROGRESSIVE DIFFICULTY
+   ═══════════════════════════════════════════ */
+function getSpawnRate(){
+  // Start at 800ms, go to 300ms linearly over 60 seconds
+  const elapsed=G.roundDuration-G.timeLeft;
+  const progress=Math.min(elapsed/G.roundDuration,1);
+  let rate=800-(500*progress); // 800 -> 300
+  if(G.speedRoundActive)rate=Math.max(rate/3,100);
+  return Math.max(rate,100);
+}
+function getBirdRate(){
+  const elapsed=G.roundDuration-G.timeLeft;
+  const progress=Math.min(elapsed/G.roundDuration,1);
+  let rate=8000-(5000*progress); // 8000 -> 3000
+  if(G.speedRoundActive)rate=Math.max(rate/3,800);
+  return Math.max(rate,800);
+}
+
+/* ═══════════════════════════════════════════
+   SPEED ROUND (last 10 seconds)
+   ═══════════════════════════════════════════ */
+function activateSpeedRound(){
+  if(G.speedRoundActive)return;
+  G.speedRoundActive=true;
+  container.classList.add('speed-round');
+  SFX.speedRound();
+  hapticPattern([100,50,100,50,100]);
+
+  const ann=document.createElement('div');
+  ann.className='streak-announce amazing';
+  ann.textContent='⚡ SPEED ROUND! ⚡';
+  document.body.appendChild(ann);
+  setTimeout(()=>ann.remove(),1300);
+}
+
+/* ═══════════════════════════════════════════
+   RANK CALCULATION
+   ═══════════════════════════════════════════ */
+function getRank(score){
+  if(score>=2000)return{emoji:'🏆',label:'LEGEND',color:'#FFD700'};
+  if(score>=1200)return{emoji:'💎',label:'DIAMOND',color:'#00BCD4'};
+  if(score>=700)return{emoji:'🥇',label:'GOLD',color:'#FFC107'};
+  if(score>=400)return{emoji:'🥈',label:'SILVER',color:'#9E9E9E'};
+  return{emoji:'🥉',label:'BRONZE',color:'#8D6E63'};
+}
+
+/* ═══════════════════════════════════════════
+   ANIMATED SCORE COUNTER
+   ═══════════════════════════════════════════ */
+function animateScoreCounter(targetScore,el,duration=1500){
+  const start=0;
+  const startTime=performance.now();
+  function tick(now){
+    const elapsed=now-startTime;
+    const progress=Math.min(elapsed/duration,1);
+    // Ease out cubic
+    const eased=1-Math.pow(1-progress,3);
+    const current=Math.round(start+(targetScore-start)*eased);
+    el.textContent=current;
+    if(progress<1)requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+/* ═══════════════════════════════════════════
    GAME TIMER
    ═══════════════════════════════════════════ */
 function startTimer(){
@@ -1276,21 +1733,71 @@ function startTimer(){
     G.timeLeft--;
     const tv=$('#timer-value');
     tv.textContent=G.timeLeft;
-    if(G.timeLeft<=10){tv.classList.add('urgent');if(G.timeLeft>0)SFX.tick()}
+    if(G.timeLeft<=10){
+      tv.classList.add('urgent');
+      if(G.timeLeft>0)SFX.tick();
+      // Activate speed round
+      activateSpeedRound();
+    }
     else tv.classList.remove('urgent');
+
+    // Strawberry Rain every 15 seconds
+    const elapsed=G.roundDuration-G.timeLeft;
+    if(elapsed>0&&elapsed%15===0&&G.timeLeft>5){
+      triggerStrawberryRain();
+    }
+
     if(G.timeLeft<=0){endGame()}
   },1000);
+}
+
+/* ═══════════════════════════════════════════
+   DYNAMIC SPAWNER (progressive difficulty)
+   ═══════════════════════════════════════════ */
+function startDynamicSpawner(){
+  // Instead of fixed setInterval, use dynamic timeout
+  function scheduleStrawberry(){
+    if(!G.running)return;
+    G.timers._strawTimeout=setTimeout(()=>{
+      spawnStrawberry();
+      scheduleStrawberry();
+    },getSpawnRate());
+  }
+  function scheduleBird(){
+    if(!G.running)return;
+    G.timers._birdTimeout=setTimeout(()=>{
+      spawnBird();
+      scheduleBird();
+    },getBirdRate());
+  }
+  scheduleStrawberry();
+  scheduleBird();
+  G.timers.powerSpawn=setInterval(spawnPowerup,G.powerupRate);
 }
 
 /* ═══════════════════════════════════════════
    GAME LOOP
    ═══════════════════════════════════════════ */
 function startGame(){
+  // ★ BUG FIX: Clear ALL existing timers first
+  Object.values(G.timers).forEach(t=>{clearInterval(t);clearTimeout(t)});
+  G.timers={};
+  if(bgMusicInterval){clearInterval(bgMusicInterval);bgMusicInterval=null}
+  if(magnetInterval){clearInterval(magnetInterval);magnetInterval=null}
+  if(powerupBarInterval){clearInterval(powerupBarInterval);powerupBarInterval=null}
+  if(G.drunkTimer){clearTimeout(G.drunkTimer);G.drunkTimer=null}
+
   initAudio();
   G.score=0;G.picked=0;G.combo=0;G.maxCombo=0;
-  G.goldenPicked=0;G.rottenHit=0;
+  G.goldenPicked=0;G.rottenHit=0;G.rainbowPicked=0;
   G.timeLeft=G.roundDuration;G.running=true;G._frozen=false;
   G.activePowers={};G.strawberries=[];G.birds=[];G.powerups=[];
+  G.speedRoundActive=false;G.lastRainEvent=0;G.streakShown={};
+  G.gameOverShown=false;
+
+  container.classList.remove('speed-round','drunk');
+  const drunkOv=document.getElementById('drunk-overlay');
+  if(drunkOv)drunkOv.remove();
 
   $('#score-value').textContent='0';
   $('#timer-value').textContent=G.timeLeft;
@@ -1302,10 +1809,9 @@ function startGame(){
   // Clear field
   field.querySelectorAll('.strawberry,.bird,.powerup,.player-cursor,.sake-item').forEach(function(e){e.remove()});
 
-  // Start spawners
-  G.timers.strawSpawn=setInterval(spawnStrawberry,G.spawnRate);
-  G.timers.birdSpawn=setInterval(spawnBird,G.birdRate);
-  G.timers.powerSpawn=setInterval(spawnPowerup,G.powerupRate);
+  // Start dynamic spawners (progressive difficulty)
+  startDynamicSpawner();
+
   G.sakeAmmo=0;G.isDrunk=false;G.sakeItems=[];updateSakeAmmo();
   if(G.isMultiplayer){G.timers.sakeSpawn=setInterval(spawnSake,6000);setTimeout(spawnSake,3000)}
 
@@ -1315,31 +1821,52 @@ function startGame(){
   startTimer();
   startBgMusic();
 
+  // Powerup bar updater
+  powerupBarInterval=setInterval(()=>{if(G.running)renderPowerupBar()},200);
+
   // Show scoreboard if multiplayer
   if(G.isMultiplayer)$('#scoreboard').classList.add('visible');
 }
 
 function endGame(){
   G.running=false;
+  G.gameOverShown=true;
   stopBgMusic();
-  clearInterval(G.timers.gameTimer);
-  clearInterval(G.timers.strawSpawn);
-  clearInterval(G.timers.birdSpawn);
-  clearInterval(G.timers.powerSpawn);
+
+  // ★ BUG FIX: Clear ALL timers properly
+  Object.values(G.timers).forEach(t=>{clearInterval(t);clearTimeout(t)});
+  G.timers={};
+  if(magnetInterval){clearInterval(magnetInterval);magnetInterval=null}
+  if(powerupBarInterval){clearInterval(powerupBarInterval);powerupBarInterval=null}
+
   for(const k of Object.keys(G.activePowers)){
     clearTimeout(G.activePowers[k].timer);
   }
   G.activePowers={};
+  G.speedRoundActive=false;
+  container.classList.remove('speed-round','drunk');
   stopMagnet();
 
   SFX.gameOver();
 
-  // Update final screen
-  $('#final-score').textContent=G.score;
+  // Rank
+  const rank=getRank(G.score);
+  $('#rank-badge').textContent=rank.emoji;
+  $('#rank-label').textContent=rank.label;
+  $('#rank-label').style.color=rank.color;
+
+  // Animated score counter
+  const finalScoreEl=$('#final-score');
+  finalScoreEl.textContent='0';
+  setTimeout(()=>animateScoreCounter(G.score,finalScoreEl,1500),300);
+
   $('#stat-picked').textContent=G.picked;
   $('#stat-combo').textContent=G.maxCombo;
   $('#stat-golden').textContent=G.goldenPicked;
   $('#stat-rotten').textContent=G.rottenHit;
+
+  // Confetti explosion on game over!
+  setTimeout(()=>spawnConfetti(80),200);
 
   // Leaderboard
   const lb=$('#final-leaderboard');
@@ -1358,6 +1885,9 @@ function endGame(){
   }
 
   showScreen('gameover-screen');
+
+  // Enable quick restart after a short delay
+  setTimeout(()=>{G._canQuickRestart=true},800);
 }
 
 /* ═══════════════════════════════════════════
@@ -1393,22 +1923,49 @@ function startSinglePlayer(){
   startGame();
 }
 function playAgain(){
+  G._canQuickRestart=false;
+  G.gameOverShown=false;
   showScreen(null);
   if(G.isMultiplayer&&G.isHost)broadcastMP({type:'restart'});
   startGame();
 }
 function backToTitle(){
   G.running=false;
+  G.gameOverShown=false;
+  G._canQuickRestart=false;
   stopBgMusic();
-  Object.values(G.timers).forEach(clearInterval);
+  // Clear all timers
+  Object.values(G.timers).forEach(t=>{clearInterval(t);clearTimeout(t)});
+  G.timers={};
+  if(magnetInterval){clearInterval(magnetInterval);magnetInterval=null}
+  if(powerupBarInterval){clearInterval(powerupBarInterval);powerupBarInterval=null}
   if(G.isHost)unregisterLobbyGame(G.roomCode);
   if(gameChannel){supaClient.removeChannel(gameChannel);gameChannel=null}
   G.isMultiplayer=false;
+  G.speedRoundActive=false;
+  container.classList.remove('speed-round','drunk');
   showScreen('title-screen');
   startLobbyScanning();
   $('#scoreboard').classList.remove('visible');
   field.querySelectorAll('.strawberry,.bird,.powerup,.player-cursor,.sake-item').forEach(function(e){e.remove()});
 }
+
+/* ═══════════════════════════════════════════
+   QUICK RESTART (tap anywhere or space)
+   ═══════════════════════════════════════════ */
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'&&G.gameOverShown&&G._canQuickRestart){
+    e.preventDefault();
+    playAgain();
+  }
+});
+document.addEventListener('pointerdown',e=>{
+  if(G.gameOverShown&&G._canQuickRestart){
+    // Don't trigger if clicking a button
+    if(e.target.closest('.btn'))return;
+    playAgain();
+  }
+},{passive:true});
 
 /* ═══════════════════════════════════════════
    MULTIPLAYER - Supabase Realtime
@@ -1598,7 +2155,7 @@ function updateScoreboard(){
 function showRemotePick(nx,ny,stype){
   var x=nx*window.innerWidth;
   var y=ny*window.innerHeight;
-  var colors=stype==='golden'?['#FFD700','#FFF176']:['#E53935','#FF5252','#FF8A80'];
+  var colors=stype==='golden'?['#FFD700','#FFF176']:stype==='rainbow'?['#FF0000','#00FF00','#0088FF']:['#E53935','#FF5252','#FF8A80'];
   spawnParticles(x,y,5,colors,5);
 }
 
@@ -1709,6 +2266,7 @@ field.addEventListener('pointerdown',e=>{
   if(e.target===field||e.target.classList.contains('dirt-rows')||e.target.classList.contains('grass-blades')){
     if(G.combo>=3){
       G.combo=0;
+      G.streakShown={};
       updateCombo();
     }
   }
