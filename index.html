@@ -1702,10 +1702,10 @@ function unregisterLobbyGame(roomCode){
 
 function renderLiveGames(){
   const list=$('#live-games-list');
-  const games=Object.values(discoveredGames).filter(g=>Date.now()-g.lastSeen<15000);
+  const games=discoveredGames;
   
-  if(games.length===0){
-    list.innerHTML='<div class="no-games">No live games found. Host one!</div>';
+  if(!games||games.length===0){
+    list.innerHTML='<div class="no-games">No live games right now. Host one!</div>';
     return;
   }
   
@@ -1713,14 +1713,11 @@ function renderLiveGames(){
   games.forEach(g=>{
     const card=document.createElement('div');
     card.className='live-game-card';
-    card.innerHTML=`
-      <div>
-        <div class="game-host">🍓 \${g.hostName}'s Farm</div>
-        <div class="game-players">👥 \${g.playerCount} player\${g.playerCount!==1?'s':''} · Room: \${g.code}</div>
-      </div>
-      <div class="join-arrow">→</div>
-    `;
-    card.addEventListener('click',()=>quickJoinGame(g.code));
+    const hn=g.hostName||'Unknown';
+    const pc=g.playerCount||1;
+    const rc=g.roomCode||'???';
+    card.innerHTML='<div><div class="game-host">🍓 '+hn+'\'s Farm</div><div class="game-players">👥 '+pc+' player'+(pc!==1?'s':'')+' · Room: '+rc+'</div></div><div class="join-arrow">→</div>';
+    card.addEventListener('click',function(){quickJoinGame(rc)});
     list.appendChild(card);
   });
 }
