@@ -1413,9 +1413,10 @@ function showHostScreen(){
 
   G.peer=new Peer('straw-'+G.roomCode,{debug:0});
   G.peer.on('open',id=>{
-    $('#lobby-status').textContent='Waiting for players... Share the code! (unlimited players)';
+    $('#lobby-status').textContent='Waiting for players... Share the code!';
     $('#start-mp-btn').style.display='block';
     updatePlayersList();
+    registerLobbyGame(G.roomCode,name,1);
   });
   G.peer.on('error',err=>{
     console.error('Peer error:',err);
@@ -1428,9 +1429,10 @@ function showHostScreen(){
       G.peer.destroy();
       G.peer=new Peer('straw-'+G.roomCode,{debug:0});
       G.peer.on('open',()=>{
-        $('#lobby-status').textContent='Waiting for players... Share the code! (unlimited players)';
+        $('#lobby-status').textContent='Waiting for players... Share the code!';
         $('#start-mp-btn').style.display='block';
         updatePlayersList();
+        registerLobbyGame(G.roomCode,name,1);
       });
       setupHostListeners();
     }else{
@@ -1448,7 +1450,7 @@ function setupHostListeners(){
     let playerId=null;
     conn.on('open',()=>{
       conn.on('data',data=>{
-        // Handle lobby probes separately - don't add to connections
+        // Handle lobby probes (legacy)
         if(data.type==='lobby_probe'){
           try{conn.send({type:'lobby_info',hostName:G.players[G.myId]?.name||'Unknown',playerCount:Object.keys(G.players).length,maxPlayers:99})}catch(e){}
           setTimeout(()=>{try{conn.close()}catch(e){}},500);
@@ -1529,6 +1531,7 @@ function handleMPData(data,conn){
       G.players[data.id]={name:data.name,score:0};
       updatePlayersList();
       broadcastMP({type:'players',players:G.players});
+      if(G.isHost)registerLobbyGame(G.roomCode,G.players[G.myId]?.name||'Unknown',Object.keys(G.players).length);
       SFX.powerup();
       break;
     case 'players':
@@ -1609,6 +1612,7 @@ function updateScoreboard(){
 
 function startMultiplayerGame(){
   if(!G.isHost)return;
+  unregisterLobbyGame(G.roomCode);
   broadcastMP({type:'players',players:G.players});
   broadcastMP({type:'start'});
   showScreen(null);
@@ -1646,88 +1650,48 @@ document.addEventListener('pointermove',e=>{
 
 
 /* ═══════════════════════════════════════════
-   LIVE GAMES LOBBY SCANNER
+   LIVE GAMES LOBBY (API-BACKED)
    ═══════════════════════════════════════════ */
-let lobbyPeer=null;
+const LOBBY_API=window.location.origin+'/api/lobby';
 let lobbyScanning=false;
-let discoveredGames={};
+let discoveredGames=[];
 let lobbyScanInterval=null;
+let lobbyHeartbeatInterval=null;
 
 function startLobbyScanning(){
   if(lobbyScanning)return;
   lobbyScanning=true;
-  discoveredGames={};
-  scanForGames();
-  lobbyScanInterval=setInterval(scanForGames,4000);
+  discoveredGames=[];
+  fetchLobbyGames();
+  lobbyScanInterval=setInterval(fetchLobbyGames,3000);
 }
 
 function stopLobbyScanning(){
   lobbyScanning=false;
   if(lobbyScanInterval){clearInterval(lobbyScanInterval);lobbyScanInterval=null}
-  if(lobbyPeer){try{lobbyPeer.destroy()}catch(e){} lobbyPeer=null}
-  discoveredGames={};
+  discoveredGames=[];
 }
 
-function scanForGames(){
-  // Try PeerJS cloud server peer listing
-  fetch('https://0.peerjs.com/peerjs/peers')
-    .then(r=>r.json())
-    .then(peers=>{
-      const gameIds=peers.filter(id=>id.startsWith('straw-')&&id.length<=12);
-      // Remove games that no longer exist
-      for(const code of Object.keys(discoveredGames)){
-        if(!gameIds.includes('straw-'+code)){
-          delete discoveredGames[code];
-        }
-      }
-      // Probe new games for info
-      gameIds.forEach(peerId=>{
-        const code=peerId.replace('straw-','');
-        if(!discoveredGames[code]){
-          probeGame(code,peerId);
-        }
-      });
-      renderLiveGames();
-    })
-    .catch(()=>{
-      // Fallback: PeerJS listing not available, try direct probing
-      renderLiveGames();
-    });
+function fetchLobbyGames(){
+  fetch(LOBBY_API).then(r=>r.json()).then(games=>{
+    discoveredGames=games;
+    renderLiveGames();
+  }).catch(()=>{});
 }
 
-function probeGame(code,peerId){
-  // Create temp peer to ask host for game info
-  const tempId='probe-'+Math.random().toString(36).substr(2,6);
-  let tempPeer;
-  try{
-    tempPeer=new Peer(tempId,{debug:0});
-  }catch(e){return}
-  
-  const cleanup=()=>{try{tempPeer.destroy()}catch(e){}};
-  const timeout=setTimeout(cleanup,3000);
-  
-  tempPeer.on('open',()=>{
-    const conn=tempPeer.connect(peerId,{reliable:true});
-    conn.on('open',()=>{
-      conn.send({type:'lobby_probe'});
-      conn.on('data',data=>{
-        if(data.type==='lobby_info'){
-          discoveredGames[code]={
-            code,
-            hostName:data.hostName||'Unknown',
-            playerCount:data.playerCount||1,
-            maxPlayers:data.maxPlayers||99,
-            lastSeen:Date.now()
-          };
-          renderLiveGames();
-        }
-        clearTimeout(timeout);
-        setTimeout(cleanup,500);
-      });
-    });
-    conn.on('error',()=>{clearTimeout(timeout);cleanup()});
-  });
-  tempPeer.on('error',()=>{clearTimeout(timeout);cleanup()});
+function registerLobbyGame(roomCode,hostName,playerCount){
+  fetch(LOBBY_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({roomCode,hostName,playerCount})}).catch(()=>{});
+  // Heartbeat every 15s
+  if(lobbyHeartbeatInterval)clearInterval(lobbyHeartbeatInterval);
+  lobbyHeartbeatInterval=setInterval(()=>{
+    const pc=Object.keys(G.players).length;
+    fetch(LOBBY_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({roomCode,hostName,playerCount:pc})}).catch(()=>{});
+  },15000);
+}
+
+function unregisterLobbyGame(roomCode){
+  if(lobbyHeartbeatInterval){clearInterval(lobbyHeartbeatInterval);lobbyHeartbeatInterval=null}
+  fetch(LOBBY_API,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({roomCode})}).catch(()=>{});
 }
 
 function renderLiveGames(){
