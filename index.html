@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
 <title>Harrison's Strawberry Farm 🍓</title>
-<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ═══════════════════════════════════════════
    RESET & BASE
@@ -697,7 +697,7 @@ const field=$('#farm-field');
 /* Supabase Realtime for multiplayer */
 const SUPA_URL='https://vvvxgoqlnltukhtlpdxx.supabase.co';
 const SUPA_KEY='sb_publishable_9EhjmwnbK3sSoEwivmvuuQ_yjTGCA6X';
-const supabase=window.supabase.createClient(SUPA_URL,SUPA_KEY);
+const supaClient=window.supabase.createClient(SUPA_URL,SUPA_KEY);
 let gameChannel=null;
 let lobbyChannel=null;
 
@@ -1402,7 +1402,7 @@ function backToTitle(){
   stopBgMusic();
   Object.values(G.timers).forEach(clearInterval);
   if(G.isHost)unregisterLobbyGame(G.roomCode);
-  if(gameChannel){supabase.removeChannel(gameChannel);gameChannel=null}
+  if(gameChannel){supaClient.removeChannel(gameChannel);gameChannel=null}
   G.isMultiplayer=false;
   showScreen('title-screen');
   startLobbyScanning();
@@ -1446,7 +1446,7 @@ function showHostScreen(){
   $('#start-mp-btn').style.display='none';
 
   // Create Supabase channel for this game
-  gameChannel=supabase.channel('game-'+G.roomCode,{config:{broadcast:{self:false}}});
+  gameChannel=supaClient.channel('game-'+G.roomCode,{config:{broadcast:{self:false}}});
   gameChannel.on('broadcast',{event:'game'},function(msg){
     handleMPData(msg.payload);
   });
@@ -1492,7 +1492,7 @@ function doJoinGame(code){
   $('#room-code').textContent=code;
 
   // Join Supabase channel
-  gameChannel=supabase.channel('game-'+code,{config:{broadcast:{self:false}}});
+  gameChannel=supaClient.channel('game-'+code,{config:{broadcast:{self:false}}});
   gameChannel.on('broadcast',{event:'game'},function(msg){
     handleMPData(msg.payload);
   });
